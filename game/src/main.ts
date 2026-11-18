@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { GameController } from './application/GameController';
 import { LocalGameStorage } from './core/storage/GameStorage';
 import { connectFamobiSdkToGameController } from './integrations/famobiSDK';
+import { connectGameplayAnalyticsToGameController } from './integrations/gameplayAnalytics';
 import { SnakeScene } from './game/scenes/SnakeScene';
 import { SnakeGame } from './game/snakeGame';
 import type { Direction, GamePhase, GameSnapshot } from './game/types';
@@ -33,6 +34,7 @@ const levelSelect = requiredElement<HTMLElement>('#level-select');
 const simulation = new SnakeGame();
 const controller = new GameController(simulation, new LocalGameStorage());
 connectFamobiSdkToGameController(controller);
+connectGameplayAnalyticsToGameController(controller);
 const snakeScene = new SnakeScene(controller);
 let currentSnapshot = controller.getSnapshot();
 
