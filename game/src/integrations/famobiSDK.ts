@@ -13,9 +13,12 @@ export const connectFamobiSdkToGameController = (gameController: GameController)
   const gameInterface = getFamobiGameInterface();
   if (!gameInterface) return;
 
+  const systemPause = createSystemPauseCoordinator(gameInterface, gameController);
+
   reportLoadingProgressAndReadiness(gameInterface, gameController);
-  reportGameplayLifecycle(gameInterface, gameController);
+  reportGameplayLifecycle(gameInterface, gameController, systemPause);
   reportScoreAndProgress(gameInterface, gameController);
+  followFamobiPauseRequests(gameInterface, systemPause);
 };
 
 /**
@@ -29,24 +32,50 @@ const reportLoadingProgressAndReadiness = (famobiGameInterface: FamobiGameInterf
   });
 };
 
-/**
- * The SDK may show an ad before gameplay continues, so the game is frozen with
- * its own platform ("system") pause until the SDK call resolves.
- */
-const holdGameplayUntilFamobiResolves = (gameController: GameController, famobiCall: () => Promise<void>): void => {
-  queueMicrotask(async () => {
-    gameController.setSystemPaused(true);
-    await famobiCall().catch(() => undefined);
-    gameController.setSystemPaused(false);
-  });
+type SystemPauseCoordinator = {
+  holdGameplayUntilFamobiResolves(famobiCall: () => Promise<void>): void;
+  applySystemPause(): void;
 };
 
-const reportGameplayLifecycle = (famobiGameInterface: FamobiGameInterface, gameController: GameController): void => {
+/**
+ * The game has a single platform ("system") pause, used for two reasons:
+ * holding gameplay while an SDK call is pending (the SDK may show an ad), and
+ * the platform's external pause. The game only unpauses when neither applies,
+ * so one can never cancel the other.
+ * Holds are deferred to a microtask because changing the game state inside an
+ * event listener would re-enter the controller mid-update; they still run
+ * before the next game tick.
+ */
+const createSystemPauseCoordinator = (famobiGameInterface: FamobiGameInterface, gameController: GameController): SystemPauseCoordinator => {
+  let pendingFamobiCalls = 0;
+
+  const applySystemPause = (): void => {
+    gameController.setSystemPaused(pendingFamobiCalls > 0 || famobiGameInterface.isPaused());
+  };
+
+  const holdGameplayUntilFamobiResolves = (famobiCall: () => Promise<void>): void => {
+    queueMicrotask(async () => {
+      pendingFamobiCalls += 1;
+      applySystemPause();
+      await famobiCall().catch(() => undefined);
+      pendingFamobiCalls -= 1;
+      applySystemPause();
+    });
+  };
+
+  return { holdGameplayUntilFamobiResolves, applySystemPause };
+};
+
+const reportGameplayLifecycle = (
+  famobiGameInterface: FamobiGameInterface,
+  gameController: GameController,
+  systemPause: SystemPauseCoordinator
+): void => {
   // A new gameStart or gameFinished must wait until the previous gameEnd (and a possible ad) resolved.
   let latestRunEndReport: Promise<void> = Promise.resolve();
 
   gameController.events.on('runStarted', ({ level }) => {
-    holdGameplayUntilFamobiResolves(gameController, async () => {
+    systemPause.holdGameplayUntilFamobiResolves(async () => {
       await latestRunEndReport;
       await famobiGameInterface.gameStart(level);
     });
@@ -69,7 +98,7 @@ const reportGameplayLifecycle = (famobiGameInterface: FamobiGameInterface, gameC
     previousPauseSource = source;
 
     if (playerPaused) void famobiGameInterface.gamePause().catch(() => undefined);
-    if (playerResumed) holdGameplayUntilFamobiResolves(gameController, () => famobiGameInterface.gameResume());
+    if (playerResumed) systemPause.holdGameplayUntilFamobiResolves(() => famobiGameInterface.gameResume());
   });
 };
 
@@ -89,4 +118,9 @@ const reportScoreAndProgress = (famobiGameInterface: FamobiGameInterface, gameCo
     lastReportedProgressPercentage = progressPercentage;
     famobiGameInterface.sendProgress(progressPercentage);
   });
+};
+
+const followFamobiPauseRequests = (famobiGameInterface: FamobiGameInterface, systemPause: SystemPauseCoordinator): void => {
+  systemPause.applySystemPause();
+  famobiGameInterface.onPauseStateChange(() => systemPause.applySystemPause());
 };

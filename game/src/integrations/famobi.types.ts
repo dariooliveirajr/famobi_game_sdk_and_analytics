@@ -16,13 +16,6 @@ export type EventParams = {
   metrics?: Record<string, number | string | boolean | null>;
 };
 
-export interface FamobiStorage {
-  getItem(key: string): unknown;
-  setItem(key: string, value: unknown): void;
-  removeItem(key: string): void;
-  clear(): void;
-}
-
 export interface FamobiGameInterface {
   // Start & loading
   sendPreloadProgress(progress: number): void;
@@ -37,23 +30,9 @@ export interface FamobiGameInterface {
   sendScore(score: number, params?: { type?: ScoreType; level?: number; stage?: number }): void;
   sendProgress(progress: number): void;
 
-  // Navigation requests (platform -> game)
-  onGoToHome(callback: () => void): void;
-  onGoToNextLevel(callback: () => void): void;
-  onGoToLevel(callback: (level: number) => void): void;
-  onRestartGame(callback: () => void): void;
-  onQuitGame(callback: () => void): void;
-  onGameOver(callback: () => void): void;
-
-  // Audio & pause
-  gameMuted(isMuted?: boolean): void;
-  isMuted(): boolean;
-  onMuteStateChange(callback: (isMuted: boolean) => void): void;
+  // External (platform) pause
   isPaused(): boolean;
   onPauseStateChange(callback: (isPaused: boolean) => void): void;
-
-  // Storage (replaces localStorage)
-  storage: FamobiStorage;
 }
 
 declare global {
