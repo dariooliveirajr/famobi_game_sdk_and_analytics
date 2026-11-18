@@ -12,3 +12,14 @@ coverage/
 .DS_Store
 *.log
 *.local
+
+# Firebase emulator
+.firebase/
+emulator-data/
+
+# Package manager caches
+.pnpm-store/
+.npm/
+
+# TypeScript
+*.tsbuildinfo

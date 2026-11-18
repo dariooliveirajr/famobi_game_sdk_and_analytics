@@ -1,0 +1,42 @@
+services:
+  firebase:
+    build: ./.docker/firebase
+    volumes:
+      - ./firebase.json:/firebase/firebase.json:ro
+      - ./.firebaserc:/firebase/.firebaserc:ro
+    ports:
+      - "4000:4000" # Emulator UI
+      - "8080:8080" # Firestore
+      - "9150:9150" # Firestore websocket (used by the Emulator UI)
+      - "4400:4400" # Emulator hub
+      - "4500:4500" # Emulator logging
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080').then(() => process.exit(0), () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: 3000
+      GCLOUD_PROJECT: demo-famobi-analytics
+      FIRESTORE_EMULATOR_HOST: firebase:8080
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules # keep the container's node_modules, not the host's
+    depends_on:
+      firebase:
+        condition: service_healthy
+
+  game:
+    build: ./game
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./game:/app
+      - /app/node_modules # keep the container's node_modules, not the host's
+    depends_on:
+      - backend

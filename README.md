@@ -42,3 +42,9 @@ The game exchanges information with two tools: the Famobi SDK and my own analyti
 2- SDK integration: steps, integration map and trade-offs are documented in [docs/sdk-integration.md](docs/sdk-integration.md).
 
 3- Gameplay analytics: data model and where each value comes from are documented in [docs/gameplay-analytics.md](docs/gameplay-analytics.md).
+
+4- Before backend: containerization. I decided to containerize everything (game, backend and Firebase emulator) so the whole project runs with one command during the review, `docker compose up --build`, without installing any dependency except Docker. Details in [docs/backend.md](docs/backend.md#containers).
+
+5- Backend: API, Firebase data structure and validation are documented in [docs/backend.md](docs/backend.md).
+
+6- Frontend:
