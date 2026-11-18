@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { firestore } from '../firestore.js';
+import { firestore } from '../../firestore.js';
 
 export const healthRouter = Router();
 

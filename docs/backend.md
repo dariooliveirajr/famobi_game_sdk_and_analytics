@@ -15,7 +15,7 @@
 
 ## Stack
 
-Node.js 24, Express 5, TypeScript, firebase-admin (Firestore). Runs in Docker, see [Containers](#containers).
+Node.js 24, Express 5, TypeScript, firebase-admin (Firestore), zod (validation). Runs in Docker, see [Containers](#containers).
 
 ## Containers
 
@@ -40,3 +40,69 @@ docker compose up --build
 | Route | Status | Purpose |
 |---|---|---|
 | `GET /api/health` | done | Returns `{ "status": "ok", "firestore": "connected" }` when the API can reach Firestore |
+| `POST /api/events` | done | Receives one `runStarted` or `runEnded` event and stores it. `202` when saved, `400` when invalid |
+
+## Folder structure
+
+```
+backend/src/
+├── server.ts                 starts the HTTP server
+├── app.ts                    Express app: JSON parser, routers, error handler
+├── firestore.ts              Firestore client (emulator)
+└── features/
+    ├── health/
+    │   └── healthRouter.ts       GET /api/health
+    └── events/
+        ├── eventsRouter.ts       POST /api/events: validate, save, answer
+        ├── runEventSchema.ts     validation rules and event types (zod)
+        └── runRepository.ts      the only file that writes to Firestore
+```
+
+## Firebase data structure
+
+One collection, `runs`, with one document per run. The document id is the `runId`.
+
+```
+runs/{runId}
+  sessionId:   string
+  level:       number
+  startedAt:   Timestamp    from runStarted.occurredAt
+  endedAt:     Timestamp    from runEnded.occurredAt (missing while the run has not ended)
+  reason:      'completed' | 'failed' | 'left'
+  score:       number
+  progress:    number       0-1
+  durationMs:  number
+  receivedAt:  Timestamp    server time of the last write
+```
+
+- `runStarted` creates the document, `runEnded` adds the end fields. Both are written with `merge`, so the arrival order does not matter: a `runEnded` that arrives before its `runStarted` still produces a complete run.
+- A duplicated event writes the same values onto the same document, so no duplicates are stored.
+- A run without `endedAt` was started but never ended (e.g. the browser was killed before `pagehide`).
+
+## Incoming data
+
+- `express.json` accepts JSON bodies up to 10 kB. Invalid JSON or a larger body is answered with `400` / `413`.
+- [runEventSchema.ts](../backend/src/features/events/runEventSchema.ts) checks every field with zod: a known `type`, UUIDs, level 1-3, an ISO date in `occurredAt`, `reason` from the three values, `score` and `durationMs` as whole numbers >= 0, `progress` between 0 and 1. Unknown fields are rejected.
+- A `400` response lists every invalid field:
+
+```json
+{ "error": "Invalid event", "issues": [{ "field": "level", "message": "Too big: expected number to be <=3" }] }
+```
+
+## Architectural decisions
+
+1. **Feature folders with three small files instead of a layered architecture.** Each feature in `features/` (`health/`, `events/`) keeps its code together. Inside, each file has one job: the router handles HTTP, the schema checks the data, the repository talks to Firestore. A more complex structure such as Clean Architecture or Hexagonal Architecture (use cases, ports, adapters, controllers, services) does not pay off for an API with two routes and no business logic between receiving and storing an event: most of those layers would only pass calls along.
+2. **zod for validation.** The schema is both the runtime check and the TypeScript type (`z.infer`), so the two cannot drift apart, and its error messages go straight into the `400` response.
+3. **One event per request.** A run produces only two events, minutes apart, so batching would add a client queue and partial-failure handling without a real benefit.
+4. **One `runs` document per run, written with `merge`.** Arrival order and duplicated events do not matter, which also removes the need for an event id.
+5. **No separate raw event storage.** The dashboard only needs the state of each run. If an audit trail were needed, an `events` subcollection under each run could be added.
+
+## Scalability
+
+The current setup is made for local use. What would change with real traffic:
+
+1. **Receiving events.** The API is stateless, so more instances can run behind a load balancer. Document ids are random UUIDs, which spreads writes evenly in Firestore. With very high traffic, a queue (e.g. Google Pub/Sub) between the API and Firestore would absorb spikes, and the game would send events in batches.
+2. **Statistics.** Computing statistics by reading every run on each dashboard request is fine locally, but gets slower and more expensive as runs grow (Firestore charges per document read). At scale: Firestore aggregation queries (`count`, `sum`, `average`) computed on the server, or counters updated when a run ends (e.g. one document per day and level, incremented with `FieldValue.increment`), so the dashboard reads a few documents instead of all runs. For deeper analysis, an export to BigQuery.
+3. **Abuse.** Validation rejects malformed data, but anyone can still send fake events. In production: rate limiting per IP or session, and possibly a signed token from the game.
+4. **Data growth.** Old runs could expire automatically (Firestore TTL policies) once they are counted in the aggregated statistics.
+5. **Deployment.** The game, the API and the dashboard are already separate containers and would be deployed separately: the game as static files on Famobi's CDN, the API as its own service, the dashboard as an internal app behind a login. Game and API on different domains would require CORS on the API.
