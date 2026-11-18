@@ -1,0 +1,14 @@
+# dependencies & builds
+node_modules/
+dist/
+coverage/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor / logs
+.DS_Store
+*.log
+*.local
