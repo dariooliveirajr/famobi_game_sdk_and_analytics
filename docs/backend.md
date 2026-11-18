@@ -32,6 +32,7 @@ docker compose up --build
 | `firebase` | http://localhost:4000 | Firebase Emulator UI (Firestore runs on port 8080) |
 
 - [docker-compose.yml](../docker-compose.yml) starts the emulator first and the backend once Firestore answers.
+- Configuration comes from environment variables set in `docker-compose.yml` (no secrets, so they are committed). Each app validates them at startup and stops with a clear error if one is missing; `backend/.env.example` and `game/.env.example` list them for running a service outside Docker.
 - The Firebase project is `demo-famobi-analytics`. Firebase treats `demo-*` projects as offline-only, so no real Firebase project and no credentials are needed.
 - Files: [.docker/firebase/Dockerfile](../.docker/firebase/Dockerfile), [backend/Dockerfile](../backend/Dockerfile), [game/Dockerfile](../game/Dockerfile), [firebase.json](../firebase.json).
 
@@ -41,6 +42,10 @@ docker compose up --build
 |---|---|---|
 | `GET /api/health` | done | Returns `{ "status": "ok", "firestore": "connected" }` when the API can reach Firestore |
 | `POST /api/events` | done | Receives one `runStarted` or `runEnded` event and stores it. `202` when saved, `400` when invalid |
+
+> **Verified:** this is how I validated that the first route worked: I played the game at http://localhost:4173 and checked the Firestore Emulator UI (http://localhost:4000). Each run appears as a document in `runs`, with the fields of both events merged into it (here a failed run on level 2).
+>
+> ![Firestore Emulator UI showing the runs collection and one stored run](images/first-route-firestore-runs.png)
 
 ## Folder structure
 

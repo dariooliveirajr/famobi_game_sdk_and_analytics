@@ -33,6 +33,8 @@ services:
 
   game:
     build: ./game
+    environment:
+      ANALYTICS_API_URL: http://backend:3000
     ports:
       - "4173:4173"
     volumes:

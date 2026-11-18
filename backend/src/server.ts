@@ -1,7 +1,6 @@
 import { createApp } from './app.js';
+import { backendEnvironment } from './backendEnvironment.js';
 
-const port = Number(process.env.PORT ?? 3000);
-
-createApp().listen(port, () => {
-  console.info(`Gameplay analytics API listening on http://localhost:${port}`);
+createApp().listen(backendEnvironment.PORT, () => {
+  console.info(`Gameplay analytics API listening on port ${backendEnvironment.PORT}`);
 });

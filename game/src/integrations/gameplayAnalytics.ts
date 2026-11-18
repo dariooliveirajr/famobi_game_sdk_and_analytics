@@ -16,9 +16,18 @@ const gameplayEndReasonByRunEndReason: Record<RunEndReason, GameplayEndReason> =
 
 const toIsoDateString = (epochMs: number): string => new Date(epochMs).toISOString();
 
-// TODO: Placeholder until the backend exists (part 3): the events are only logged.
+// Same origin as the game: the Vite preview server forwards /api to the backend.
+const gameplayEventsEndpoint = '/api/events';
+
+// keepalive: a request started while the page is closing (pagehide) is still delivered.
+// Errors are ignored on purpose: analytics must never break the game.
 const sendGameplayEvent = (gameplayEvent: GameplayEvent): void => {
-  console.info(`[analytics] ${gameplayEvent.type}`, gameplayEvent);
+  void fetch(gameplayEventsEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(gameplayEvent),
+    keepalive: true
+  }).catch(() => undefined);
 };
 
 export const connectGameplayAnalyticsToGameController = (gameController: GameController): void => {
