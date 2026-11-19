@@ -1,0 +1,224 @@
+/* Colors from a validated, colorblind-safe chart palette (light and dark mode). */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface-chart: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.1);
+  --hover-wash: rgba(11, 11, 11, 0.05);
+  --series-single: #2a78d6;
+  --series-failed: #d13f3f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface-chart: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.1);
+    --hover-wash: rgba(255, 255, 255, 0.06);
+    --series-single: #3987e5;
+    --series-failed: #e5534b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.dashboard {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dashboard-subtitle,
+.chart-question,
+.overview-explanation {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.dashboard-message {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-chart);
+}
+
+button {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-chart);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.overview-card,
+.chart-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-chart);
+}
+
+/* Overview: total runs above the per-level table on phones, beside it from tablet width. */
+.overview-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .overview-card {
+    grid-template-columns: 200px 1fr;
+    align-items: start;
+  }
+}
+
+.overview-total-label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.overview-total-value {
+  margin: 8px 0 0;
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The table scrolls inside its card on very narrow phones instead of widening the page. */
+.table-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.overview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-table th,
+.overview-table td {
+  padding: 8px;
+  border-top: 1px solid var(--gridline);
+  text-align: right;
+}
+
+.overview-table thead th {
+  border-top: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+.overview-table th:first-child {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.chart-card .recharts-responsive-container {
+  margin-top: 16px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.chart-grid .chart-card {
+  margin-bottom: 0;
+}
+
+.recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+}
+
+.overview-table td {
+  white-space: nowrap;
+}
+
+/* Phones: each level becomes its own block of "label  value" lines, so no column is cut off. */
+@media (max-width: 559px) {
+  .overview-table thead {
+    display: none;
+  }
+
+  .overview-table tr,
+  .overview-table th,
+  .overview-table td {
+    display: block;
+  }
+
+  .overview-table tbody tr {
+    padding: 8px 0;
+    border-top: 1px solid var(--gridline);
+  }
+
+  .overview-table th,
+  .overview-table td {
+    padding: 2px 0;
+    border-top: none;
+  }
+
+  .overview-table tbody th {
+    font-weight: 600;
+  }
+
+  .overview-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .overview-table td::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+  }
+}

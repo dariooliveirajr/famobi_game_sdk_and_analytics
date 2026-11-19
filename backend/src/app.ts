@@ -2,6 +2,7 @@ import express, { type ErrorRequestHandler } from 'express';
 
 import { eventsRouter } from './features/events/eventsRouter.js';
 import { healthRouter } from './features/health/healthRouter.js';
+import { statisticsRouter } from './features/statistics/statisticsRouter.js';
 
 // Errors from express.json() (invalid JSON, body too large) carry a 4xx status;
 // everything else is unexpected and answered with a generic 500.
@@ -18,6 +19,7 @@ export const createApp = () => {
 
   app.use('/api/health', healthRouter);
   app.use('/api/events', eventsRouter);
+  app.use('/api/stats', statisticsRouter);
 
   app.use(handleError);
   return app;

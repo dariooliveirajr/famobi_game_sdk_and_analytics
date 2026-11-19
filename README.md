@@ -47,4 +47,4 @@ The game exchanges information with two tools: the Famobi SDK and my own analyti
 
 5- Backend: API, Firebase data structure and validation are documented in [docs/backend.md](docs/backend.md).
 
-6- Frontend:
+6- Frontend: dashboard, KPIs, charts and the reasoning behind them are documented in [docs/frontend.md](docs/frontend.md).
