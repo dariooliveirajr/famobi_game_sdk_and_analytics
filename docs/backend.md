@@ -1,5 +1,7 @@
 # Backend
 
+[← Back to README](../README.md)
+
 ## Task
 
 > Create a Node.js backend that receives the gameplay analytics and stores them in Firebase.
@@ -57,6 +59,8 @@ docker compose exec backend npm run seed
 
 ## Folder structure
 
+Why it is organized like this: see [Architectural decisions](#architectural-decisions).
+
 ```
 backend/src/
 ├── server.ts                 starts the HTTP server
@@ -65,14 +69,10 @@ backend/src/
 └── features/
     ├── health/
     │   └── healthRouter.ts       GET /api/health
-    └── events/
-        ├── eventsRouter.ts       POST /api/events: validate, save, answer
-        ├── runEventSchema.ts     validation rules and event types (zod)
-        ├── runEventSchema.test.ts
-        └── runRepository.ts      the only file that writes to Firestore
     ├── events/
     │   ├── eventsRouter.ts       POST /api/events: validate, save, answer
     │   ├── runEventSchema.ts     validation rules and event types (zod)
+    │   ├── runEventSchema.test.ts
     │   └── runRepository.ts      the only file that reads and writes runs in Firestore
     └── statistics/
         ├── statisticsRouter.ts   GET /api/stats
@@ -103,6 +103,8 @@ runs/{runId}
 - A duplicated event writes the same values onto the same document, so no duplicates are stored.
 - A run without `endedAt` was started but never ended (e.g. the browser was killed before `pagehide`).
 
+**Why "run" and not "gameplay":** at first I wanted to call it "gameplay", like the task does. But one gameplay (a visit to the game) can contain several runs, and the game code itself already calls an attempt a run (`runStarted`, `runEnded`). I kept the game's name so that the game, the analytics, the database and the dashboard all use the same word.
+
 ## Incoming data
 
 - `express.json` accepts JSON bodies up to 10 kB. Invalid JSON or a larger body is answered with `400` / `413`.
@@ -132,12 +134,13 @@ Both are pure functions: no Firestore and no HTTP server are needed, so the test
 
 ## Architectural decisions
 
-1. **Feature folders with three small files instead of a layered architecture.** Each feature in `features/` (`health/`, `events/`) keeps its code together. Inside, each file has one job: the router handles HTTP, the schema checks the data, the repository talks to Firestore. A more complex structure such as Clean Architecture or Hexagonal Architecture (use cases, ports, adapters, controllers, services) does not pay off for an API with two routes and no business logic between receiving and storing an event: most of those layers would only pass calls along.
+1. **Feature-based architecture with three small files per feature.** Each feature in `features/` (`health/`, `events/`, `statistics/`) keeps its code together. Inside, each file has one job: the router handles HTTP, the schema checks the data, the repository talks to Firestore. I compared it with two other designs:
+    - **Clean Architecture** does not fit, because the app has no complicated business use cases: an event is received, checked and stored. Use cases, controllers and services would mostly pass calls along.
+    - **Hexagonal Architecture** (ports and adapters) does not fit either. Its main benefit is swapping technologies, but Firestore is not meant to change here, the business rules are simple, and there are no clearly separated technical layers to put behind ports.
 2. **zod for validation.** The schema is both the runtime check and the TypeScript type (`z.infer`), so the two cannot drift apart, and its error messages go straight into the `400` response.
 3. **One event per request.** A run produces only two events, minutes apart, so batching would add a client queue and partial-failure handling without a real benefit.
 4. **One `runs` document per run, written with `merge`.** Arrival order and duplicated events do not matter, which also removes the need for an event id.
 5. **No separate raw event storage.** The dashboard only needs the state of each run. If an audit trail were needed, an `events` subcollection under each run could be added.
-
 6. **Statistics are prepared in the backend, in one route.** `GET /api/stats` returns the numbers in the shape the charts need, so the dashboard only formats them. One route means one request and one place to explain; the statistics are computed on each request from all runs, which is fine locally (see Scalability).
 7. **Reproducible demo data.** `npm run seed` simulates sessions like the real game (start at level 1, next level after completing, sometimes retry after failing), with the real fruit targets and scoring. A fixed random seed gives every reviewer the same data. It writes through the same repository functions as the API.
 
@@ -150,3 +153,7 @@ The current setup is made for local use. What would change with real traffic:
 3. **Abuse.** Validation rejects malformed data, but anyone can still send fake events. In production: rate limiting per IP or session, and possibly a signed token from the game.
 4. **Data growth.** Old runs could expire automatically (Firestore TTL policies) once they are counted in the aggregated statistics.
 5. **Deployment.** The game, the API and the dashboard are already separate containers and would be deployed separately: the game as static files on Famobi's CDN, the API as its own service, the dashboard as an internal app behind a login. Game and API on different domains would require CORS on the API.
+
+---
+
+[← Back to README](../README.md)

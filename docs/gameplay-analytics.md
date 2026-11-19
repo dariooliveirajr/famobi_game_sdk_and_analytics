@@ -1,5 +1,7 @@
 # Gameplay Analytics
 
+[← Back to README](../README.md)
+
 ## Task
 
 > Add analytics to the game so that relevant gameplay activity can be recorded.
@@ -42,3 +44,7 @@ Every event is sent the same way: `fetch` with `keepalive: true`. A normal `fetc
 
 4. Events go to the game's own origin
 The game posts to `/api/events` on its own address, and the Vite preview server forwards `/api` to the backend container ([vite.config.ts](../game/vite.config.ts)). Game and API share one origin locally, so no CORS setup is needed. Sending errors are ignored on purpose: analytics must never break the game.
+
+---
+
+[← Back to README](../README.md)
