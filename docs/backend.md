@@ -76,7 +76,8 @@ backend/src/
     │   └── runRepository.ts      the only file that reads and writes runs in Firestore
     └── statistics/
         ├── statisticsRouter.ts   GET /api/stats
-        └── runStatistics.ts      turns stored runs into dashboard-ready numbers
+        ├── runStatistics.ts      turns stored runs into dashboard-ready numbers
+        └── runStatistics.test.ts
 scripts/
 └── seedRuns.ts                   demo data: npm run seed
 ```
@@ -120,8 +121,14 @@ Run the tests inside the backend container:
 docker compose exec backend npm test
 ```
 
-- **Unit tests** for `runEventSchema` with Node's built-in test runner (`node:test`), so no extra test library is needed. They check that valid events pass and that bad input is rejected with the right field: unknown event type, a level the game does not have, ids that are not UUIDs, a wrong date format, missing end fields, an unknown reason, progress above 100 % and unknown fields. The validation is the backend's main protection against bad data, so it is tested first.
-- **CI** (`.github/workflows/ci.yml`, GitHub Actions) runs on every pull request and on pushes to `main`. The backend job runs the type check and the tests, the game job runs the type check and the build, and the frontend job runs the type check once the frontend is merged.
+16 unit tests with Node's built-in test runner (`node:test`), so no extra test library is needed. They cover the two places where the backend makes decisions:
+
+- **`runEventSchema`** (incoming data): valid events pass, and bad input is rejected with the right field: unknown event type, a level the game does not have, ids that are not UUIDs, a wrong date format, missing end fields, an unknown reason, progress above 100 % and unknown fields. The validation is the backend's main protection against bad data.
+- **`calculateRunStatistics`** (data prepared for the dashboard): every number on the dashboard comes from this function, so the tests check each one with small hand-made runs: the per-level overview (runs, average time, completed, left, average progress), runs that have not ended (counted in runs played, but not in rates and averages), failed runs per level with their rate, runs per day in UTC including days without runs, and empty data (zeros and `null` instead of dividing by zero).
+
+Both are pure functions: no Firestore and no HTTP server are needed, so the tests run in well under a second. Firestore access (`runRepository.ts`) and the routes are not unit tested; they were checked by hand against the emulator (see [API](#api)). An API test against the emulator is the next step.
+
+**CI** (`.github/workflows/ci.yml`, GitHub Actions) runs on every pull request and on pushes to `main`. The backend job runs the type check and the tests, the game job runs the type check and the build, and the frontend job runs the type check.
 
 ## Architectural decisions
 
