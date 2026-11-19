@@ -30,11 +30,18 @@ docker compose up --build
 | `game` | http://localhost:4173 | Neon Snake with the Famobi SDK and the analytics client. Rebuilt automatically on code changes |
 | `backend` | http://localhost:3000 | Express API. Restarts automatically on code changes |
 | `firebase` | http://localhost:4000 | Firebase Emulator UI (Firestore runs on port 8080) |
+| `frontend` | http://localhost:5173 | React analytics dashboard, see [frontend.md](frontend.md) |
+
+The emulator starts empty. To fill it with two weeks of demo runs:
+
+```bash
+docker compose exec backend npm run seed
+```
 
 - [docker-compose.yml](../docker-compose.yml) starts the emulator first and the backend once Firestore answers.
-- Configuration comes from environment variables set in `docker-compose.yml` (no secrets, so they are committed). Each app validates them at startup and stops with a clear error if one is missing; `backend/.env.example` and `game/.env.example` list them for running a service outside Docker.
+- Configuration comes from environment variables set in `docker-compose.yml` (no secrets, so they are committed). Each app validates them at startup and stops with a clear error if one is missing; `backend/.env.example`, `game/.env.example` and `frontend/.env.example` list them for running a service outside Docker.
 - The Firebase project is `demo-famobi-analytics`. Firebase treats `demo-*` projects as offline-only, so no real Firebase project and no credentials are needed.
-- Files: [.docker/firebase/Dockerfile](../.docker/firebase/Dockerfile), [backend/Dockerfile](../backend/Dockerfile), [game/Dockerfile](../game/Dockerfile), [firebase.json](../firebase.json).
+- Files: [.docker/firebase/Dockerfile](../.docker/firebase/Dockerfile), [backend/Dockerfile](../backend/Dockerfile), [game/Dockerfile](../game/Dockerfile), [frontend/Dockerfile](../frontend/Dockerfile), [firebase.json](../firebase.json).
 
 ## API
 
@@ -42,6 +49,7 @@ docker compose up --build
 |---|---|---|
 | `GET /api/health` | done | Returns `{ "status": "ok", "firestore": "connected" }` when the API can reach Firestore |
 | `POST /api/events` | done | Receives one `runStarted` or `runEnded` event and stores it. `202` when saved, `400` when invalid |
+| `GET /api/stats` | done | Everything the dashboard shows, in one response: `overview` (total runs and one row per level), `runsPerDay` (last 14 days, UTC), `failedRunsPerLevel` (failed runs and failed rate per level) |
 
 > **Verified:** this is how I validated that the first route worked: I played the game at http://localhost:4173 and checked the Firestore Emulator UI (http://localhost:4000). Each run appears as a document in `runs`, with the fields of both events merged into it (here a failed run on level 2).
 >
@@ -62,6 +70,16 @@ backend/src/
         ├── runEventSchema.ts     validation rules and event types (zod)
         ├── runEventSchema.test.ts
         └── runRepository.ts      the only file that writes to Firestore
+    ├── events/
+    │   ├── eventsRouter.ts       POST /api/events: validate, save, answer
+    │   ├── runEventSchema.ts     validation rules and event types (zod)
+    │   └── runRepository.ts      the only file that reads and writes runs in Firestore
+    └── statistics/
+        ├── statisticsRouter.ts   GET /api/stats
+        ├── runStatistics.ts      turns stored runs into dashboard-ready numbers
+        └── runStatistics.test.ts
+scripts/
+└── seedRuns.ts                   demo data: npm run seed
 ```
 
 ## Firebase data structure
@@ -103,8 +121,14 @@ Run the tests inside the backend container:
 docker compose exec backend npm test
 ```
 
-- **Unit tests** for `runEventSchema` with Node's built-in test runner (`node:test`), so no extra test library is needed. They check that valid events pass and that bad input is rejected with the right field: unknown event type, a level the game does not have, ids that are not UUIDs, a wrong date format, missing end fields, an unknown reason, progress above 100 % and unknown fields. The validation is the backend's main protection against bad data, so it is tested first.
-- **CI** (`.github/workflows/ci.yml`, GitHub Actions) runs on every pull request and on pushes to `main`. The backend job runs the type check and the tests, the game job runs the type check and the build, and the frontend job runs the type check once the frontend is merged.
+16 unit tests with Node's built-in test runner (`node:test`), so no extra test library is needed. They cover the two places where the backend makes decisions:
+
+- **`runEventSchema`** (incoming data): valid events pass, and bad input is rejected with the right field: unknown event type, a level the game does not have, ids that are not UUIDs, a wrong date format, missing end fields, an unknown reason, progress above 100 % and unknown fields. The validation is the backend's main protection against bad data.
+- **`calculateRunStatistics`** (data prepared for the dashboard): every number on the dashboard comes from this function, so the tests check each one with small hand-made runs: the per-level overview (runs, average time, completed, left, average progress), runs that have not ended (counted in runs played, but not in rates and averages), failed runs per level with their rate, runs per day in UTC including days without runs, and empty data (zeros and `null` instead of dividing by zero).
+
+Both are pure functions: no Firestore and no HTTP server are needed, so the tests run in well under a second. Firestore access (`runRepository.ts`) and the routes are not unit tested; they were checked by hand against the emulator (see [API](#api)). An API test against the emulator is the next step.
+
+**CI** (`.github/workflows/ci.yml`, GitHub Actions) runs on every pull request and on pushes to `main`. The backend job runs the type check and the tests, the game job runs the type check and the build, and the frontend job runs the type check.
 
 ## Architectural decisions
 
@@ -113,6 +137,9 @@ docker compose exec backend npm test
 3. **One event per request.** A run produces only two events, minutes apart, so batching would add a client queue and partial-failure handling without a real benefit.
 4. **One `runs` document per run, written with `merge`.** Arrival order and duplicated events do not matter, which also removes the need for an event id.
 5. **No separate raw event storage.** The dashboard only needs the state of each run. If an audit trail were needed, an `events` subcollection under each run could be added.
+
+6. **Statistics are prepared in the backend, in one route.** `GET /api/stats` returns the numbers in the shape the charts need, so the dashboard only formats them. One route means one request and one place to explain; the statistics are computed on each request from all runs, which is fine locally (see Scalability).
+7. **Reproducible demo data.** `npm run seed` simulates sessions like the real game (start at level 1, next level after completing, sometimes retry after failing), with the real fruit targets and scoring. A fixed random seed gives every reviewer the same data. It writes through the same repository functions as the API.
 
 ## Scalability
 

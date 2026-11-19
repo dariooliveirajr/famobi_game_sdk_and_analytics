@@ -31,6 +31,18 @@ services:
       firebase:
         condition: service_healthy
 
+  frontend:
+    build: ./frontend
+    environment:
+      ANALYTICS_API_URL: http://backend:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # keep the container's node_modules, not the host's
+    depends_on:
+      - backend
+
   game:
     build: ./game
     environment:
