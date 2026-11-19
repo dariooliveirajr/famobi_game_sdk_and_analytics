@@ -1,27 +1,36 @@
-SDK Integration
+# SDK Integration
 
-Sections are divided by the docs: https://docs.famobi.com/start
+[← Back to README](../README.md)
+
+## Task
+
+> Integrate the SDK into the provided game by following the Famobi documentation.
+>
+> The integration should represent the important moments of the game correctly, including loading, starting and ending gameplay, score, progress, and pause behavior when applicable.
+
+The sections follow the structure of the Famobi docs: https://docs.famobi.com/start
 
 ### 1. Start
-1- Copied game from Famobi-GmbH/neon-snake@75584c3
 
-2- Added the SDK to the project. First catch: the game cannot load with script="module" and npm dev. It should build first and be passed to the SDK.init.  
-    TODO/Drawback: dev doesn't works anymore. game.js is loaded globally.
+1- Copied the game from Famobi-GmbH/neon-snake@75584c3.
 
-3- Created sdk types.ts
+2- Added the SDK to the project. First catch: the game cannot be loaded as `<script type="module">` from the dev server. It has to be built first, and the built file is passed to `GameInterface.init`.  
+    Drawback: `pnpm dev` doesn't work anymore, because the SDK loads the built `game.js` globally.
 
-4- Start-04 Games must report loading progress. After implementation I noticed that the SDK loads a localTester for local environments. 
+3- Created the SDK types in `famobi.types.ts`.
 
-> **Verified:** I can confirm that it was called because of the logging from GameInterface in the browser console.
+4- Start-04: games must report the loading progress. After implementing it, I noticed that the SDK loads a local tester in local environments.
 
-5- Start-05 famobi.json. Added because the docs require it. The game code never reads this file: the SDK fetches it during `GameInterface.init(...)` and uses it as platform configuration (number of levels, ad placements, in-app products).
+> **Verified:** the call appears in the local tester's log in the browser console.
+
+5- Start-05: `famobi.json`. Added because the docs require it. The game code never reads this file: the SDK fetches it during `GameInterface.init(...)` and uses it as platform configuration (number of levels, ad placements, in-app products).
     - It lives in `game/public/famobi.json`, because Vite only copies files from `public/` into `dist/`, which is where it ends up next to the built `index.html`.
     - It only contains `"maxLevels": 3`, matching the 3 levels in `levels.ts`. The docs example (1400 levels, ads, IAP product) was not used, because Neon Snake has no ads or shop, and the Famobi Tester checks that every ad event ID listed in `famobi.json` is actually triggered by the game.
     - No TypeScript interfaces were created for it: `FamobiJson` / `ProductData` in the docs describe the file format, not code the game uses.
 
-### 2. Game TODO: verify each step
+### 2. Game
 
-Identification and map of functionalities that should be integrated, so that AI can generate the boilerplate code. Loading progress (`sendPreloadProgress`) is covered in Start-04 above.
+First I identified the moments of the game that have to be integrated and mapped each one to an SDK call. The AI generated the boilerplate code from this map. Loading progress (`sendPreloadProgress`) is covered in Start-04 above.
 
 **Game → SDK (events the game reports)**
 
@@ -49,7 +58,7 @@ To keep the original game code unchanged, the integration only listens to the ga
 - The hold uses the system pause, which the platform's external pause also uses. Both are combined so they never unpause each other (see 3. Pause).
 - Game-10 (stages) does not apply: Neon Snake has levels, not stages.
 
-> **Verified:** I can confirm that it was called because of the logging from GameInterface in the browser console.
+> **Verified:** every SDK call appears in the local tester's log in the browser console.
 
 ### 3. Pause
 
@@ -65,7 +74,7 @@ To keep the original game code unchanged, the integration only listens to the ga
 - If the platform pauses the game while the player is in the menu, nothing changes visually (the menu is not gameplay). When the player then starts a run, it is paused immediately until the platform unpauses.
 - If the player presses pause *during* a platform pause, `gamePause()` is only reported once the platform pause ends, because that is when the game shows its own pause screen. If the player pauses and resumes during the same platform pause, neither `gamePause` nor `gameResume` is reported.
 
-**Verified:** against a fake `GameInterface`: a platform pause freezes a running game and unpauses it afterwards; a player pause and resume during a platform pause keeps the game paused until the platform unpauses; a platform pause from the menu holds the next run; two overlapping pending `gameStart` calls keep the game held until both resolved.
+> **Verified:** against a fake `GameInterface`: a platform pause freezes a running game and unpauses it afterwards; a player pause and resume during a platform pause keeps the game paused until the platform unpauses; a platform pause from the menu holds the next run; two overlapping pending `gameStart` calls keep the game held until both have resolved.
 
 ### 4. Not in scope
 
@@ -74,3 +83,7 @@ I am aware of these Famobi docs sections and decided not to implement them, beca
 - **Requests:** the platform can ask the game to go to the home screen, restart, go to the next or a specific level, quit, or trigger game over.
 - **Audio:** the platform can mute or unmute the game, and the game reports when the player mutes it.
 - **Storage:** the docs require replacing `localStorage` with `GameInterface.storage` (cloud saves, reliable storage inside portal iframes). The player profile (best score, unlocked levels, mute choice) stays in `localStorage`.
+
+---
+
+[← Back to README](../README.md)

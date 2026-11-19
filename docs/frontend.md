@@ -1,5 +1,7 @@
 # Frontend
 
+[← Back to README](../README.md)
+
 ## Task
 
 > Create a React frontend that consumes the backend and presents useful gameplay insights.
@@ -34,6 +36,22 @@ So I went with **runs** (one attempt at one level). A list of single runs alone 
 - **Average progress at end:** how far into the level players get. I used progress instead of score because the score has no maximum and carries over between levels.
 
 The two charts complete it: **runs per day** (is the game played, and is it growing?) and **failed runs per level** (in which level do players fail most?).
+
+#### My KPIs compared with the AI's suggestion
+
+I did not hand this decision to the AI, but I used its suggestion to compare with my own. When I asked for KPIs, Claude Code suggested a row of four KPI tiles for the whole game and two charts:
+
+| Claude Code suggested | What I decided | Why |
+|---|---|---|
+| Runs played | Total runs played | kept: it shows the overall activity |
+| Completion rate (completed ÷ ended runs) | Completed, **per level** | one rate for the whole game hides that level 3 is much harder than level 1 |
+| Left rate (left ÷ ended runs) | Left, **per level** | same reason: drop-off is a per-level question |
+| Average score | Average progress at end, per level | the score has no maximum and carries over between levels, so it cannot be compared; progress is a percentage of the level |
+| (not suggested) | Average time spent per run, per level | how long an attempt takes; a level that suddenly takes much longer is a difficulty signal |
+| Chart: results per level (stacked bars) | Chart: failed runs per level | a simpler question to answer at a glance: in which level do players fail most? |
+| Chart: runs per day | Chart: runs per day | kept |
+
+After my decision, the AI implemented it and I reviewed the result. My first chart, *progress before failing per level*, turned out to be hard to read, so I replaced it (see decision 5).
 
 ### Overview: total runs and one row per level
 
@@ -84,3 +102,7 @@ frontend/src/
 9. **Loading, error and empty states.** The dashboard explains what is happening instead of showing empty charts: "Loading…", "Is the backend running?", or how to add demo data.
 
 > **Verified:** I opened the dashboard with seeded data in light mode, dark mode and at 390, 768 and 1200 px width (screenshot above): all charts render, the layout has no horizontal scrolling, and there are no browser console errors.
+
+---
+
+[← Back to README](../README.md)
