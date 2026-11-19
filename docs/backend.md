@@ -60,6 +60,7 @@ backend/src/
     └── events/
         ├── eventsRouter.ts       POST /api/events: validate, save, answer
         ├── runEventSchema.ts     validation rules and event types (zod)
+        ├── runEventSchema.test.ts
         └── runRepository.ts      the only file that writes to Firestore
 ```
 
@@ -93,6 +94,17 @@ runs/{runId}
 ```json
 { "error": "Invalid event", "issues": [{ "field": "level", "message": "Too big: expected number to be <=3" }] }
 ```
+
+## Tests and CI
+
+Run the tests inside the backend container:
+
+```
+docker compose exec backend npm test
+```
+
+- **Unit tests** for `runEventSchema` with Node's built-in test runner (`node:test`), so no extra test library is needed. They check that valid events pass and that bad input is rejected with the right field: unknown event type, a level the game does not have, ids that are not UUIDs, a wrong date format, missing end fields, an unknown reason, progress above 100 % and unknown fields. The validation is the backend's main protection against bad data, so it is tested first.
+- **CI** (`.github/workflows/ci.yml`, GitHub Actions) runs on every pull request and on pushes to `main`. The backend job runs the type check and the tests, the game job runs the type check and the build, and the frontend job runs the type check once the frontend is merged.
 
 ## Architectural decisions
 
